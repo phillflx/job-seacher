@@ -40,3 +40,23 @@ Keep LinkedIn URL support by passing the URL to `--profile`:
 ```powershell
 python src/jobs_searcher/search.py "Data Engineer" --profile "https://www.linkedin.com/in/example/" --output jobs.json
 ```
+
+## Run the User Interface
+
+Install the project and its dependencies, including Gradio:
+
+```powershell
+python -m pip install -e .
+```
+
+From the project root, launch the interface:
+
+```powershell
+cd src/jobs_searcher
+python -m ui
+```
+
+The interface reads jobs from `jobs.db` in the current working directory and
+creates the database and `jobs` table if they do not exist. Use the title,
+location, and Easy Apply filters to browse the results. The table displays ten
+jobs per page; use **Previous** and **Next** to navigate.

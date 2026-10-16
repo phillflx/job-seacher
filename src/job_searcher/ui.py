@@ -1,0 +1,153 @@
+﻿"""Gradio interface for browsing jobs stored in SQLite."""
+
+import sqlite3
+from pathlib import Path
+from typing import Any
+
+import gradio as gr
+
+from .init_db import create_jobs_table
+
+PAGE_SIZE = 10
+TABLE_COLUMNS = [
+    "Job ID",
+    "Title",
+    "Company",
+    "Location",
+    "Date posted",
+    "Easy apply",
+    "LinkedIn URL",
+]
+
+
+def get_jobs_page(
+    database_path: str | Path,
+    job_title: str = "",
+    location: str = "",
+    easy_apply: str = "Any",
+    page: int = 0,
+) -> tuple[list[list[Any]], int, int]:
+    """Return one filtered page of jobs and pagination totals."""
+    clauses: list[str] = []
+    parameters: list[Any] = []
+
+    if job_title.strip():
+        clauses.append("LOWER(title) LIKE LOWER(?)")
+        parameters.append(f"%{job_title.strip()}%")
+    if location.strip():
+        clauses.append("LOWER(location) LIKE LOWER(?)")
+        parameters.append(f"%{location.strip()}%")
+    if easy_apply == "Yes":
+        clauses.append("easy_apply = 1")
+    elif easy_apply == "No":
+        clauses.append("easy_apply = 0")
+
+    where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    columns = "job_id, title, company, location, date_posted, easy_apply, linkedin_url"
+
+    with sqlite3.connect(database_path) as connection:
+        total = connection.execute(
+            f"SELECT COUNT(*) FROM jobs {where_sql}", parameters
+        ).fetchone()[0]
+        page_count = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+        page = min(max(page, 0), page_count - 1)
+        rows = connection.execute(
+            f"SELECT {columns} FROM jobs {where_sql} "
+            "ORDER BY rowid DESC LIMIT ? OFFSET ?",
+            [*parameters, PAGE_SIZE, page * PAGE_SIZE],
+        ).fetchall()
+
+    formatted = [
+        [job_id, title, company, location, date_posted, "Yes" if easy else "No", linkedin_url]
+        for job_id, title, company, location, date_posted, easy, linkedin_url in rows
+    ]
+    return formatted, total, page
+
+
+def create_app(database_path: str | Path = "jobs.db") -> gr.Blocks:
+    """Build the paginated job browser for the selected SQLite database."""
+    database_path = Path(database_path)
+    create_jobs_table(database_path)
+
+    def refresh(job_title: str, location: str, easy_apply: str, page: int):
+        rows, total, page = get_jobs_page(
+            database_path, job_title, location, easy_apply, page
+        )
+        page_count = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+        message = (
+            f"Page {page + 1} of {page_count} Â· {total} job(s)"
+            if total
+            else "No jobs match these filters."
+        )
+        return (
+            rows,
+            page,
+            message,
+            gr.update(interactive=page > 0),
+            gr.update(interactive=page < page_count - 1),
+        )
+
+    def change_page(delta: int, job_title: str, location: str, easy_apply: str, page: int):
+        return refresh(job_title, location, easy_apply, page + delta)
+
+    with gr.Blocks(title="Saved jobs") as app:
+        gr.Markdown("# Saved jobs\nBrowse and filter jobs stored in the SQLite database.")
+        page_state = gr.State(0)
+
+        with gr.Row():
+            title_filter = gr.Textbox(label="Job title", placeholder="Filter by title")
+            location_filter = gr.Textbox(label="Location", placeholder="Filter by location")
+            easy_filter = gr.Dropdown(
+                choices=["Any", "Yes", "No"], value="Any", label="Easy apply"
+            )
+
+        jobs_table = gr.Dataframe(
+            headers=TABLE_COLUMNS,
+            datatype=["str"] * len(TABLE_COLUMNS),
+            value=[],
+            interactive=False,
+            wrap=True,
+            label="Jobs",
+        )
+        with gr.Row():
+            previous_button = gr.Button("Previous", interactive=False)
+            page_status = gr.Markdown()
+            next_button = gr.Button("Next")
+
+        outputs = [jobs_table, page_state, page_status, previous_button, next_button]
+        filters = [title_filter, location_filter, easy_filter]
+        for component in filters:
+            component.change(
+                lambda title, location, easy: refresh(title, location, easy, 0),
+                inputs=filters,
+                outputs=outputs,
+            )
+        previous_button.click(
+            lambda title, location, easy, page: change_page(
+                -1, title, location, easy, page
+            ),
+            inputs=[*filters, page_state],
+            outputs=outputs,
+        )
+        next_button.click(
+            lambda title, location, easy, page: change_page(
+                1, title, location, easy, page
+            ),
+            inputs=[*filters, page_state],
+            outputs=outputs,
+        )
+        app.load(
+            lambda: refresh("", "", "Any", 0),
+            outputs=outputs,
+        )
+
+    return app
+
+
+def main() -> None:
+    create_app().launch()
+
+
+if __name__ == "__main__":
+    main()
+
