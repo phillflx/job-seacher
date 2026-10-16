@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import re
 from time import sleep
 from urllib.parse import urlencode
+import traceback
 
 from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 from selenium.webdriver.common.by import By
@@ -61,29 +62,31 @@ class JobSearch:
             EC.presence_of_element_located((By.CSS_SELECTOR, JOBS_CONTAINER_SELECTOR))
         )
         self._scroll_to_end(container)
-        links = self.driver.find_elements(By.CSS_SELECTOR, JOB_LINK_SELECTOR)[:limit]
+        links = self.driver.find_elements(By.CSS_SELECTOR, JOB_LINK_SELECTOR)
 
         jobs: list[Job] = []
+        last_job_id = None
         for index in range(len(links)):
             # Re-query on every iteration because selecting a card replaces its DOM node.
             cards = self.driver.find_elements(By.CSS_SELECTOR, JOB_LINK_SELECTOR)
-            if index >= len(cards):
+            if index >= len(cards) or len(jobs) >= limit:
                 break
+
             card = cards[index]
             card_url = card.get_attribute("href") or ""
             job_id = self._get_job_id(card, card_url)
+            if job_id == last_job_id:
+                continue
+
             try:
                 card.click()
-            except StaleElementReferenceException:
-                cards = self.driver.find_elements(By.CSS_SELECTOR, JOB_LINK_SELECTOR)
-                if index >= len(cards):
-                    continue
-                card = cards[index]
-                card_url = card.get_attribute("href") or card_url
-                job_id = self._get_job_id(card, card_url) or job_id
-                card.click()
+                job = self._read_selected_job(wait, card_url, job_id)
+                jobs.append(job)
+            except Exception:
+                traceback.print_exc()
+                continue
 
-            jobs.append(self._read_selected_job(wait, card_url, job_id))
+            last_job_id = job_id
         return jobs
 
     def _scroll_to_end(self, container) -> None:

@@ -16,14 +16,14 @@ from openai import OpenAI
 # MODEL = "gemini-3.5-flash-lite"
 
 BASE_URL = "http://localhost:11434/v1"
-MODEL = "llama3.2"
+MODEL = "qwen2.5-coder"
 
 class FieldsSearcher:
     client: OpenAI
 
-    def __init__(self, client: OpenAI | None = None):
+    def __init__(self, client: OpenAI | None = None, model:str = MODEL):
         """Create a field extractor using GOOGLE_API_KEY unless a client is supplied."""
-        self.model = os.getenv("FIELDS_SEARCHER_MODEL", MODEL)
+        self.model = os.getenv("FIELDS_SEARCHER_MODEL", model)
         self.client = client or self.get_client()
 
     def get_client(self) -> OpenAI:

@@ -41,6 +41,9 @@ class JobsImporter:
 
         with sqlite3.connect(self.database_path) as connection:
             for job in jobs:
+                if None in [job.title, job.company, job.location]:
+                    continue
+
                 values = tuple(getattr(job, column) for column in JOB_COLUMNS)
                 job_id = str(getattr(job, "job_id", "") or "").strip()
                 linkedin_url = str(getattr(job, "linkedin_url", "") or "").strip()
