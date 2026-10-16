@@ -14,6 +14,7 @@ from .fields_searcher import FieldsSearcher
 from .session_manager import SessionManager
 
 LINKEDIN_SEARCH_URL = "https://www.linkedin.com/jobs/search-results/"
+LINKEDIN_JOB_VIEW_URL = "https://www.linkedin.com/jobs/view/"
 JOBS_CONTAINER_SELECTOR = '[componentkey="SearchResultsMainContent"]'
 JOB_LINK_SELECTOR = '[componentkey^="job-card-component-ref-"]'
 JOB_DETAILS_CONTAINER_SELECTOR = '[data-sdui-screen="com.linkedin.sdui.flagshipnav.jobs.SemanticJobDetails"]'
@@ -116,14 +117,13 @@ class JobSearch:
 
         extracted = self.fields_searcher.get_fields_from_text(
             self._selected_job_text(card_url, job_id),
-            ["job_id", "title", "company", "location", "date_posted", "description", "linkedin_url"],
+            ["title", "company", "location", "date_posted", "description"],
         )
-        extracted_url = extracted.get("linkedin_url")
-        linkedin_url = extracted_url if isinstance(extracted_url, str) and extracted_url else card_url
+        linkedin_url = f"{LINKEDIN_JOB_VIEW_URL}/{job_id}/"
         date_posted = extracted.get("date_posted") or ""
 
         return Job(
-            job_id=str(extracted.get("job_id") or job_id),
+            job_id=job_id,
             title=str(extracted.get("title") or ""),
             company=str(extracted.get("company") or ""),
             location=str(extracted.get("location") or ""),
@@ -137,17 +137,7 @@ class JobSearch:
         )
 
     def _selected_job_text(self, card_url: str, job_id: str) -> str:
-        parts = []
-        seen: set[str] = set()
-        for element in self.driver.find_elements(By.CSS_SELECTOR, JOB_DETAILS_CONTAINER_SELECTOR):
-            try:
-                text = element.get_attribute("outerHTML")
-            except StaleElementReferenceException:
-                continue
-            if text and text not in seen:
-                parts.append(text)
-                seen.add(text)
-        return "\n".join(parts)
+        return self.driver.find_elements(By.CSS_SELECTOR, JOB_DETAILS_CONTAINER_SELECTOR)[0].text
 
     @staticmethod
     def _get_job_id(card, card_url: str) -> str:
