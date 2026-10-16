@@ -1,0 +1,22 @@
+[project]
+name = "job-searcher"
+version = "0.1.0"
+description = "Automation of jobs search and application"
+readme = "README.md"
+authors = [
+    { name = "Philipe Felix", email = "philipe.felixdossantos@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "dotenv>=0.9.9",
+    "openai>=3.31.0",
+    "pypdf>=6.21.0",
+    "selenium>=4.51.0",
+]
+
+[project.scripts]
+job-searcher = "job_searcher:main"
+
+[build-system]
+requires = ["uv_build>=0.12.11,<0.13.0"]
+build-backend = "uv_build"
