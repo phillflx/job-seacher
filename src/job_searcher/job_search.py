@@ -1,6 +1,9 @@
 """
 Creates a JobSearch Object which scrapes linkedin job search and returns a job list
-it uses SessionManager to interact with linkedin
+It uses SessionManager to interact with linkedin
+Initialize using JobSearch(session_manager: SessionManager)
+Methods:
+    - search(job_title, limit)
 """
 
 from dataclasses import asdict, dataclass
