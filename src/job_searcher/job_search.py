@@ -121,7 +121,7 @@ class JobSearch:
             self._selected_job_text(card_url, job_id),
             ["title", "company", "location", "date_posted", "description"],
         )
-        linkedin_url = f"{LINKEDIN_JOB_VIEW_URL}/{job_id}/"
+        linkedin_url = f"{LINKEDIN_JOB_VIEW_URL}{job_id}/"
         date_posted = extracted.get("date_posted") or ""
 
         return Job(

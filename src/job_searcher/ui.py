@@ -1,8 +1,10 @@
 ﻿"""Gradio interface for browsing jobs stored in SQLite."""
 
+import html
 import sqlite3
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import gradio as gr
 
@@ -17,6 +19,7 @@ TABLE_COLUMNS = [
     "Date posted",
     "Easy apply",
     "LinkedIn URL",
+    "Apply URL",
 ]
 
 
@@ -43,7 +46,10 @@ def get_jobs_page(
         clauses.append("easy_apply = 0")
 
     where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-    columns = "job_id, title, company, location, date_posted, easy_apply, linkedin_url"
+    columns = (
+        "job_id, title, company, location, date_posted, easy_apply, "
+        "linkedin_url, apply_url"
+    )
 
     with sqlite3.connect(database_path) as connection:
         total = connection.execute(
@@ -58,10 +64,40 @@ def get_jobs_page(
         ).fetchall()
 
     formatted = [
-        [job_id, title, company, location, date_posted, "Yes" if easy else "No", linkedin_url]
-        for job_id, title, company, location, date_posted, easy, linkedin_url in rows
+        [
+            job_id, title, company, location, date_posted,
+            "Yes" if easy else "No", linkedin_url, apply_url,
+        ]
+        for job_id, title, company, location, date_posted, easy, linkedin_url, apply_url in rows
     ]
     return formatted, total, page
+
+
+def _render_jobs_table(rows: list[list[Any]]) -> str:
+    """Render the current page as an HTML table with safe clickable URLs."""
+    headers = "".join(f"<th>{html.escape(column)}</th>" for column in TABLE_COLUMNS)
+    body_rows = []
+    for job_id, title, company, location, date_posted, easy_apply, linkedin_url, apply_url in rows:
+        cells = [job_id, title, company, location, date_posted, easy_apply]
+        rendered_cells = [f"<td>{html.escape(str(value or ''))}</td>" for value in cells]
+        for url in (linkedin_url, apply_url):
+            safe_url = str(url or "").strip()
+            scheme = urlsplit(safe_url).scheme.lower()
+            if scheme in {"http", "https"}:
+                escaped_url = html.escape(safe_url, quote=True)
+                rendered_cells.append(
+                    f'<td><a href="{escaped_url}" target="_blank" '
+                    f'rel="noopener noreferrer">Open link</a></td>'
+                )
+            else:
+                rendered_cells.append("<td></td>")
+        body_rows.append(f"<tr>{''.join(rendered_cells)}</tr>")
+
+    table = (
+        '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">'
+        f"<thead><tr>{headers}</tr></thead><tbody>{''.join(body_rows)}</tbody></table></div>"
+    )
+    return table
 
 
 def create_app(database_path: str | Path = "jobs.db") -> gr.Blocks:
@@ -75,12 +111,12 @@ def create_app(database_path: str | Path = "jobs.db") -> gr.Blocks:
         )
         page_count = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
         message = (
-            f"Page {page + 1} of {page_count} Â· {total} job(s)"
+            f"Page {page + 1} of {page_count} | {total} job(s)"
             if total
             else "No jobs match these filters."
         )
         return (
-            rows,
+            _render_jobs_table(rows),
             page,
             message,
             gr.update(interactive=page > 0),
@@ -101,12 +137,8 @@ def create_app(database_path: str | Path = "jobs.db") -> gr.Blocks:
                 choices=["Any", "Yes", "No"], value="Any", label="Easy apply"
             )
 
-        jobs_table = gr.Dataframe(
-            headers=TABLE_COLUMNS,
-            datatype=["str"] * len(TABLE_COLUMNS),
-            value=[],
-            interactive=False,
-            wrap=True,
+        jobs_table = gr.HTML(
+            value=_render_jobs_table([]),
             label="Jobs",
         )
         with gr.Row():
@@ -150,4 +182,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
