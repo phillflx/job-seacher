@@ -12,8 +12,11 @@ import os
 
 from openai import OpenAI
 
-BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
-MODEL = "gemini-3.5-flash-lite"
+# BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+# MODEL = "gemini-3.5-flash-lite"
+
+BASE_URL = "http://localhost:11434/v1"
+MODEL = "llama3.2"
 
 class FieldsSearcher:
     client: OpenAI

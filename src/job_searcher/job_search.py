@@ -1,8 +1,8 @@
 ﻿"""Search LinkedIn job listings using an authenticated Selenium session."""
 
 from dataclasses import dataclass
+import re
 from time import sleep
-from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
@@ -10,12 +10,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-if TYPE_CHECKING:
-    from .session_manager import SessionManager
+from .fields_searcher import FieldsSearcher
+from .session_manager import SessionManager
 
 LINKEDIN_SEARCH_URL = "https://www.linkedin.com/jobs/search-results/"
 JOBS_CONTAINER_SELECTOR = '[componentkey="SearchResultsMainContent"]'
 JOB_LINK_SELECTOR = '[componentkey^="job-card-component-ref-"]'
+JOB_DETAILS_CONTAINER_SELECTOR = '[data-sdui-screen="com.linkedin.sdui.flagshipnav.jobs.SemanticJobDetails"]'
 APPLY_BUTTON_SELECTORS = (
     'button.jobs-apply-button',
     'a.jobs-apply-button',
@@ -27,11 +28,14 @@ APPLY_BUTTON_SELECTORS = (
 
 @dataclass
 class Job:
+    job_id: str = ""
     title: str = ""
     company: str = ""
     location: str = ""
     url: str = ""
+    linkedin_url: str = ""
     listed: str = ""
+    date_posted: str = ""
     description: str = ""
     easy_apply: bool = False
     apply_url: str = ""
@@ -41,9 +45,10 @@ class Job:
 class JobSearch:
     """Scrape job cards and their detail panes from LinkedIn."""
 
-    def __init__(self, session_manager: "SessionManager") -> None:
+    def __init__(self, session_manager: SessionManager) -> None:
         self.session_manager = session_manager
         self.driver = session_manager.driver
+        self.fields_searcher: FieldsSearcher = FieldsSearcher()
 
     def search(self, job_title: str, limit: int) -> list[Job]:
         """Search LinkedIn for *job_title* and return up to *limit* jobs."""
@@ -66,6 +71,7 @@ class JobSearch:
                 break
             card = cards[index]
             card_url = card.get_attribute("href") or ""
+            job_id = self._get_job_id(card, card_url)
             try:
                 card.click()
             except StaleElementReferenceException:
@@ -74,9 +80,10 @@ class JobSearch:
                     continue
                 card = cards[index]
                 card_url = card.get_attribute("href") or card_url
+                job_id = self._get_job_id(card, card_url) or job_id
                 card.click()
 
-            jobs.append(self._read_selected_job(wait, card_url))
+            jobs.append(self._read_selected_job(wait, card_url, job_id))
         return jobs
 
     def _scroll_to_end(self, container) -> None:
@@ -100,39 +107,57 @@ class JobSearch:
                 stable_rounds = 0
                 previous_height = height
 
-    def _read_selected_job(self, wait: WebDriverWait, card_url: str) -> Job:
+    def _read_selected_job(self, wait: WebDriverWait, card_url: str, job_id: str = "") -> Job:
         apply_button = self._wait_for_apply_button(wait)
         apply_url = (apply_button.get_attribute("href") or "").strip()
         button_text = " ".join(
             filter(None, (apply_button.text, apply_button.get_attribute("aria-label")))
         ).lower()
 
+        extracted = self.fields_searcher.get_fields_from_text(
+            self._selected_job_text(card_url, job_id),
+            ["job_id", "title", "company", "location", "date_posted", "description", "linkedin_url"],
+        )
+        extracted_url = extracted.get("linkedin_url")
+        linkedin_url = extracted_url if isinstance(extracted_url, str) and extracted_url else card_url
+        date_posted = extracted.get("date_posted") or ""
+
         return Job(
-            title=self._text_first((
-                ".jobs-unified-top-card__job-title",
-                ".job-details-jobs-unified-top-card__job-title",
-                "h1",
-            )),
-            company=self._text_first((
-                ".jobs-unified-top-card__company-name",
-                ".job-details-jobs-unified-top-card__company-name",
-            )),
-            location=self._text_first((
-                ".jobs-unified-top-card__primary-description",
-                ".job-details-jobs-unified-top-card__tertiary-description-container",
-            )),
-            url=card_url,
-            listed=self._text_first((
-                ".jobs-unified-top-card__posted-date",
-                "li.jobs-unified-top-card__subtitle-item",
-            )),
-            description=self._text_first((
-                ".jobs-description__content",
-                ".jobs-description-content__text",
-            )),
+            job_id=str(extracted.get("job_id") or job_id),
+            title=str(extracted.get("title") or ""),
+            company=str(extracted.get("company") or ""),
+            location=str(extracted.get("location") or ""),
+            url=linkedin_url,
+            linkedin_url=linkedin_url,
+            listed=str(date_posted),
+            date_posted=str(date_posted),
+            description=str(extracted.get("description") or ""),
             easy_apply="easy" in button_text,
             apply_url=apply_url,
         )
+
+    def _selected_job_text(self, card_url: str, job_id: str) -> str:
+        parts = []
+        seen: set[str] = set()
+        for element in self.driver.find_elements(By.CSS_SELECTOR, JOB_DETAILS_CONTAINER_SELECTOR):
+            try:
+                text = element.get_attribute("outerHTML")
+            except StaleElementReferenceException:
+                continue
+            if text and text not in seen:
+                parts.append(text)
+                seen.add(text)
+        return "\n".join(parts)
+
+    @staticmethod
+    def _get_job_id(card, card_url: str) -> str:
+        for attribute in ("data-job-id", "componentkey"):
+            value = card.get_attribute(attribute) or ""
+            match = re.search(r"(\d{6,})", value)
+            if match:
+                return match.group(1)
+        match = re.search(r"/jobs/view/(\d+)", card_url)
+        return match.group(1) if match else ""
 
     def _wait_for_apply_button(self, wait: WebDriverWait):
         def find_button(driver):
