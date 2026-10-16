@@ -33,7 +33,6 @@ class Job:
     title: str = ""
     company: str = ""
     location: str = ""
-    url: str = ""
     linkedin_url: str = ""
     listed: str = ""
     date_posted: str = ""
@@ -127,7 +126,6 @@ class JobSearch:
             title=str(extracted.get("title") or ""),
             company=str(extracted.get("company") or ""),
             location=str(extracted.get("location") or ""),
-            url=linkedin_url,
             linkedin_url=linkedin_url,
             listed=str(date_posted),
             date_posted=str(date_posted),
