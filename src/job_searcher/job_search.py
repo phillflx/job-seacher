@@ -1,6 +1,5 @@
 ﻿"""Search LinkedIn job listings using an authenticated Selenium session."""
 
-from dataclasses import dataclass
 import re
 from time import sleep
 from urllib.parse import urlencode
@@ -12,6 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from .fields_searcher import FieldsSearcher
+from .job import Job
 from .session_manager import SessionManager
 
 LINKEDIN_SEARCH_URL = "https://www.linkedin.com/jobs/search-results/"
@@ -26,21 +26,6 @@ APPLY_BUTTON_SELECTORS = (
     'button[aria-label*="Apply"]',
     'a[aria-label*="Apply"]',
 )
-
-
-@dataclass
-class Job:
-    job_id: str = ""
-    title: str = ""
-    company: str = ""
-    location: str = ""
-    linkedin_url: str = ""
-    listed: str = ""
-    date_posted: str = ""
-    description: str = ""
-    easy_apply: bool = False
-    apply_url: str = ""
-    applied: bool = False
 
 
 class JobSearch:

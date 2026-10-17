@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 import gradio as gr
 
-from .init_db import create_jobs_table
+from .job import create_jobs_table
 
 PAGE_SIZE = 10
 TABLE_COLUMNS = [

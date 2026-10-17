@@ -16,7 +16,7 @@ from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.ui import WebDriverWait
 
 from .fields_searcher import FieldsSearcher
-from .job_search import Job
+from .job import Job
 from .session_manager import SessionManager
 
 EASY_APPLY_DIALOG_SELECTOR = (

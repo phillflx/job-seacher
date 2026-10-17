@@ -4,23 +4,7 @@ import sqlite3
 from pathlib import Path
 from typing import Iterable
 
-from .init_db import create_jobs_table
-from .job_search import Job
-
-JOB_COLUMNS = (
-    "job_id",
-    "title",
-    "company",
-    "location",
-    "linkedin_url",
-    "listed",
-    "date_posted",
-    "description",
-    "easy_apply",
-    "apply_url",
-    "applied",
-)
-
+from .job import Job, create_jobs_table, JOB_COLUMNS
 
 class JobsImporter:
     """Insert jobs into SQLite, skipping jobs that are already present."""
