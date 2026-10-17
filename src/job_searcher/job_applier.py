@@ -16,7 +16,7 @@ from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.ui import WebDriverWait
 
 from .fields_searcher import FieldsSearcher
-from .job import Job
+from .job import Job, Jobs
 from .session_manager import SessionManager
 
 EASY_APPLY_DIALOG_SELECTOR = (
@@ -51,6 +51,7 @@ class JobApplier:
         self.driver = session_manager.driver
         self.user_profie = user_profie
         self.fields_searcher = fields_searcher or FieldsSearcher()
+        self.jobs = Jobs()
         self.wait = WebDriverWait(self.driver, 15)
 
     def apply_to_job(self, job: Job) -> None:
@@ -66,6 +67,7 @@ class JobApplier:
 
         for _step in range(20):
             if self._application_was_sent():
+                self._mark_job_applied(job)
                 return
 
             dialog = self.wait.until(
@@ -91,9 +93,19 @@ class JobApplier:
                 ) from error
 
             if self._application_was_sent():
+                self._mark_job_applied(job)
                 return
 
         raise RuntimeError("Easy Apply did not finish after 20 form steps.")
+
+    def _mark_job_applied(self, job: Job) -> None:
+        """Persist the applied flag after LinkedIn confirms the submission."""
+        job.applied = True
+        try:
+            self.jobs.update(job)
+        except LookupError:
+            # Also persist applications for jobs that were not imported beforehand.
+            self.jobs.create(job)
 
     def _find_easy_apply_button(self, driver):
         for selector in EASY_APPLY_BUTTON_SELECTORS:
