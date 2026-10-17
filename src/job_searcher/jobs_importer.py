@@ -1,15 +1,20 @@
 """Persist scraped jobs in the project's SQLite database."""
 
+import logging
 import sqlite3
 from pathlib import Path
 from typing import Iterable
 
 from .job import Job, create_jobs_table, JOB_COLUMNS
 
+logger = logging.getLogger(__name__)
+
+
 class JobsImporter:
     """Insert jobs into SQLite, skipping jobs that are already present."""
 
     def __init__(self, database_path: str | Path = "jobs.db") -> None:
+        logger.info("JobsImporter.__init__(database_path=%s)", database_path)
         self.database_path = Path(database_path)
         create_jobs_table(self.database_path)
 
@@ -19,6 +24,11 @@ class JobsImporter:
         Jobs are considered duplicates when their non-empty LinkedIn job ID
         matches. If an ID is unavailable, their LinkedIn URL is used instead.
         """
+        jobs_count = len(jobs) if hasattr(jobs, "__len__") else "unknown"
+        logger.info(
+            "JobsImporter.persist_jobs(jobs_type=%s, jobs_count=%s)",
+            type(jobs).__name__, jobs_count,
+        )
         inserted = 0
         placeholders = ", ".join("?" for _ in JOB_COLUMNS)
         columns = ", ".join(JOB_COLUMNS)

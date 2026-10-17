@@ -1,5 +1,6 @@
 """Apply to LinkedIn jobs through the Easy Apply dialog."""
 
+import logging
 import re
 from typing import Any
 
@@ -36,6 +37,7 @@ ACTION_LABELS = (
     "next",
 )
 SUCCESS_MESSAGE = "your application was sent"
+logger = logging.getLogger(__name__)
 
 
 class JobApplier:
@@ -47,6 +49,11 @@ class JobApplier:
         user_profie: str,
         fields_searcher: FieldsSearcher | None = None,
     ) -> None:
+        logger.info(
+            "JobApplier.__init__(session_manager=%s, user_profie_length=%d, fields_searcher=%s)",
+            type(session_manager).__name__, len(user_profie),
+            type(fields_searcher).__name__ if fields_searcher is not None else None,
+        )
         self.session_manager = session_manager
         self.driver = session_manager.driver
         self.user_profie = user_profie
@@ -56,6 +63,10 @@ class JobApplier:
 
     def apply_to_job(self, job: Job) -> None:
         """Open Easy Apply, fill available fields, and submit the application."""
+        logger.info(
+            "JobApplier.apply_to_job(job_id=%s, linkedin_url=%s)",
+            job.job_id, job.linkedin_url,
+        )
         if job.linkedin_url:
             self.driver.get(job.linkedin_url)
 
@@ -100,6 +111,7 @@ class JobApplier:
 
     def _mark_job_applied(self, job: Job) -> None:
         """Persist the applied flag after LinkedIn confirms the submission."""
+        logger.info("JobApplier._mark_job_applied(job_id=%s)", job.job_id)
         job.applied = True
         try:
             self.jobs.update(job)
@@ -108,6 +120,7 @@ class JobApplier:
             self.jobs.create(job)
 
     def _find_easy_apply_button(self, driver):
+        logger.info("JobApplier._find_easy_apply_button(driver=%s)", type(driver).__name__)
         for selector in EASY_APPLY_BUTTON_SELECTORS:
             for button in driver.find_elements(By.CSS_SELECTOR, selector):
                 if button.is_displayed() and button.is_enabled():
@@ -124,6 +137,7 @@ class JobApplier:
         return False
 
     def _fill_empty_fields(self, dialog) -> None:
+        logger.info("JobApplier._fill_empty_fields(dialog=%s)", type(dialog).__name__)
         fields = self._get_empty_fields(dialog)
         if not fields:
             return
@@ -148,6 +162,7 @@ class JobApplier:
                 continue
 
     def _get_empty_fields(self, dialog) -> list[dict[str, Any]]:
+        logger.info("JobApplier._get_empty_fields(dialog=%s)", type(dialog).__name__)
         controls = []
         radio_groups: dict[str, list[Any]] = {}
 
@@ -198,6 +213,10 @@ class JobApplier:
 
     @staticmethod
     def _is_empty(element, tag: str, input_type: str) -> bool:
+        logger.info(
+            "JobApplier._is_empty(element=%s, tag=%s, input_type=%s)",
+            type(element).__name__, tag, input_type,
+        )
         if tag == "select":
             selected = Select(element).first_selected_option
             value = (selected.get_attribute("value") or "").strip()
@@ -210,6 +229,10 @@ class JobApplier:
         return not (element.get_attribute("value") or "").strip()
 
     def _field_label(self, element) -> str:
+        logger.info(
+            "JobApplier._field_label(element=%s, tag=%s, id=%s)",
+            type(element).__name__, element.tag_name, element.get_attribute("id"),
+        )
         parts = [
             element.get_attribute("aria-label"),
             element.get_attribute("placeholder"),
@@ -231,6 +254,10 @@ class JobApplier:
         return " ".join(dict.fromkeys(part.strip() for part in parts if part and part.strip()))
 
     def _radio_group_label(self, elements: list[Any], group_name: str) -> str:
+        logger.info(
+            "JobApplier._radio_group_label(elements_count=%d, group_name=%s)",
+            len(elements), group_name,
+        )
         for element in elements:
             try:
                 container_text = element.find_element(
@@ -243,6 +270,11 @@ class JobApplier:
         return group_name
 
     def _fill_field(self, field: dict[str, Any], answer: Any) -> None:
+        logger.info(
+            "JobApplier._fill_field(field=%s, answer_type=%s, answer_length=%s)",
+            field.get("request", field.get("label", field.get("kind"))),
+            type(answer).__name__, len(answer) if isinstance(answer, (str, list, tuple)) else None,
+        )
         elements = field["elements"]
         kind = field["kind"]
         if kind == "radio":
@@ -282,6 +314,7 @@ class JobApplier:
         element.send_keys(str(answer))
 
     def _find_action_button(self, dialog):
+        logger.info("JobApplier._find_action_button(dialog=%s)", type(dialog).__name__)
         buttons = [
             button
             for button in dialog.find_elements(By.CSS_SELECTOR, "button")
@@ -297,12 +330,14 @@ class JobApplier:
         return None
 
     def _application_was_sent(self) -> bool:
+        logger.info("JobApplier._application_was_sent()")
         try:
             return SUCCESS_MESSAGE in self.driver.find_element(By.TAG_NAME, "body").text.lower()
         except (NoSuchElementException, StaleElementReferenceException):
             return False
 
     def _current_dialog_state(self) -> str:
+        logger.info("JobApplier._current_dialog_state()")
         try:
             dialogs = self.driver.find_elements(By.CSS_SELECTOR, EASY_APPLY_DIALOG_SELECTOR)
             return self._dialog_state(dialogs[0]) if dialogs else ""
@@ -311,6 +346,7 @@ class JobApplier:
 
     @staticmethod
     def _dialog_state(dialog) -> str:
+        logger.info("JobApplier._dialog_state(dialog=%s)", type(dialog).__name__)
         text = dialog.text
         buttons = [
             " ".join((button.text, button.get_attribute("aria-label") or ""))

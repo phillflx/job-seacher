@@ -1,5 +1,6 @@
 ﻿"""Search LinkedIn job listings using an authenticated Selenium session."""
 
+import logging
 import re
 from time import sleep
 from urllib.parse import urlencode
@@ -26,18 +27,21 @@ APPLY_BUTTON_SELECTORS = (
     'button[aria-label*="Apply"]',
     'a[aria-label*="Apply"]',
 )
+logger = logging.getLogger(__name__)
 
 
 class JobSearch:
     """Scrape job cards and their detail panes from LinkedIn."""
 
     def __init__(self, session_manager: SessionManager) -> None:
+        logger.info("JobSearch.__init__(session_manager=%s)", type(session_manager).__name__)
         self.session_manager = session_manager
         self.driver = session_manager.driver
         self.fields_searcher: FieldsSearcher = FieldsSearcher()
 
     def search(self, job_title: str, limit: int) -> list[Job]:
         """Search LinkedIn for *job_title* and return up to *limit* jobs."""
+        logger.info("JobSearch.search(job_title=%r, limit=%d)", job_title, limit)
         if limit <= 0:
             return []
 
@@ -76,6 +80,7 @@ class JobSearch:
 
     def _scroll_to_end(self, container) -> None:
         """Scroll the results pane until its content stops growing."""
+        logger.info("JobSearch._scroll_to_end(container=%s)", type(container).__name__)
         previous_height = -1
         stable_rounds = 0
         while stable_rounds < 3:
@@ -96,6 +101,10 @@ class JobSearch:
                 previous_height = height
 
     def _read_selected_job(self, wait: WebDriverWait, card_url: str, job_id: str = "") -> Job:
+        logger.info(
+            "JobSearch._read_selected_job(wait=%s, card_url=%s, job_id=%s)",
+            type(wait).__name__, card_url, job_id,
+        )
         apply_button = self._wait_for_apply_button(wait)
         apply_url = (apply_button.get_attribute("href") or "").strip()
         button_text = " ".join(
@@ -123,10 +132,16 @@ class JobSearch:
         )
 
     def _selected_job_text(self, card_url: str, job_id: str) -> str:
+        logger.info(
+            "JobSearch._selected_job_text(card_url=%s, job_id=%s)", card_url, job_id
+        )
         return self.driver.find_elements(By.CSS_SELECTOR, JOB_DETAILS_CONTAINER_SELECTOR)[0].text
 
     @staticmethod
     def _get_job_id(card, card_url: str) -> str:
+        logger.info(
+            "JobSearch._get_job_id(card=%s, card_url=%s)", type(card).__name__, card_url
+        )
         for attribute in ("data-job-id", "componentkey"):
             value = card.get_attribute(attribute) or ""
             match = re.search(r"(\d{6,})", value)
@@ -136,7 +151,9 @@ class JobSearch:
         return match.group(1) if match else ""
 
     def _wait_for_apply_button(self, wait: WebDriverWait):
+        logger.info("JobSearch._wait_for_apply_button(wait=%s)", type(wait).__name__)
         def find_button(driver):
+            logger.info("JobSearch._wait_for_apply_button.find_button(driver=%s)", type(driver).__name__)
             for selector in APPLY_BUTTON_SELECTORS:
                 buttons = driver.find_elements(By.CSS_SELECTOR, selector)
                 if buttons:
@@ -150,6 +167,7 @@ class JobSearch:
             return _EmptyElement()
 
     def _text_first(self, selectors: tuple[str, ...]) -> str:
+        logger.info("JobSearch._text_first(selectors=%s)", selectors)
         for selector in selectors:
             for element in self.driver.find_elements(By.CSS_SELECTOR, selector):
                 try:
@@ -168,8 +186,10 @@ class _EmptyElement:
 
     @staticmethod
     def get_attribute(_name: str) -> str:
+        logger.info("_EmptyElement.get_attribute(name=%s)", _name)
         return ""
 
 
 def main() -> None:
+    logger.info("job_search.main()")
     print("JobSearch is a library component; create it with a SessionManager instance.")
