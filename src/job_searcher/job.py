@@ -111,17 +111,19 @@ class Jobs:
             raise LookupError(f"No job found with id {id!r}.")
         return Job(**{column: row[column] for column in JOB_COLUMNS})
 
-    def get_unapplied_easy_apply(self) -> Job | None:
-        """Return the newest Easy Apply job that has not been applied to yet."""
+    def get_unapplied_easy_apply(self, limit: int) -> list[Job]:
+        """Return up to *limit* newest Easy Apply jobs not yet applied to."""
+        if limit <= 0:
+            return []
+
         with closing(sqlite3.connect(self.database_path)) as connection:
             connection.row_factory = sqlite3.Row
-            row = connection.execute(
+            rows = connection.execute(
                 """SELECT * FROM jobs
                    WHERE easy_apply = 1 AND applied = 0
                    ORDER BY rowid DESC
-                   LIMIT 1"""
-            ).fetchone()
+                   LIMIT ?""",
+                (limit,),
+            ).fetchall()
 
-        if row is None:
-            return None
-        return Job(**{column: row[column] for column in JOB_COLUMNS})
+        return [Job(**{column: row[column] for column in JOB_COLUMNS}) for row in rows]
