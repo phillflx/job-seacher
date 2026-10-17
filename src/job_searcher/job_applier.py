@@ -36,7 +36,7 @@ ACTION_LABELS = (
     "review",
     "next",
 )
-SUCCESS_MESSAGE = "your application was sent"
+SUCCESS_MESSAGES = ["your application was sent", "application submitted"]
 logger = logging.getLogger(__name__)
 
 
@@ -69,6 +69,10 @@ class JobApplier:
         )
         if job.linkedin_url:
             self.driver.get(job.linkedin_url)
+
+        if self._application_was_sent():
+            self._mark_job_applied(job)
+            return
 
         easy_apply_button = self.wait.until(self._find_easy_apply_button)
         easy_apply_button.click()
@@ -332,7 +336,8 @@ class JobApplier:
     def _application_was_sent(self) -> bool:
         logger.info("JobApplier._application_was_sent()")
         try:
-            return SUCCESS_MESSAGE in self.driver.find_element(By.TAG_NAME, "body").text.lower()
+            body_text = self.driver.find_element(By.TAG_NAME, "body").text.lower()
+            return any(message.lower() in body_text for message in SUCCESS_MESSAGES)
         except (NoSuchElementException, StaleElementReferenceException):
             return False
 
