@@ -46,3 +46,6 @@ nosetests.xml
 .DS_Store
 Thumbs.db
 **/*.db
+
+# Local files
+career-profile
