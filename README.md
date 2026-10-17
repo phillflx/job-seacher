@@ -1,62 +1,64 @@
 # LinkedIn Jobs Application Assistant
 
-A small Python CLI that searches LinkedIn's public job listings by title,
-prints matching jobs and lets you open each listing for your own review.
+Search LinkedIn job listings, save them in a local SQLite database, browse
+saved jobs in a Gradio interface, and optionally apply to Easy Apply jobs.
 
 ## Setup
 
-Create a private profile file, or a directory containing profile documents,
-outside version control. PDF, TXT, and Markdown (`.md`) files are supported.
-For a directory, files in subdirectories are included in sorted path order.
-Include only facts you want used in application drafts, for example:
-
-```markdown
-## Experience
-- Data Engineer at Example Co (2022–2025): built Python and SQL pipelines.
-
-## Skills
-- Python, SQL, dbt, Airflow
-
-## Education
-- B.S. in Computer Science
-```
-
-## Run Search
-
-```powershell
-python src/jobs_searcher/search.py "Data Engineer" "Software Engineer" "AI Engineer" --location "São Paulo, Brazil" --profile C:\private\career-profile.md --output jobs.json
-```
-
-Pass a directory to combine all supported profile files:
-
-```powershell
-python src/jobs_searcher/search.py "Data Engineer" --profile C:\private\career-profile --output jobs.json
-```
-
-Install the project dependencies to enable PDF text extraction (`pypdf`).
-
-Keep LinkedIn URL support by passing the URL to `--profile`:
-
-```powershell
-python src/jobs_searcher/search.py "Data Engineer" --profile "https://www.linkedin.com/in/example/" --output jobs.json
-```
-
-## Run the User Interface
-
-Install the project and its dependencies, including Gradio:
+From the repository root, install the project and its dependencies:
 
 ```powershell
 python -m pip install -e .
 ```
 
-From the project root, launch the interface:
+When you plan to use `--apply`, create a profile directory containing the
+information you want used in applications. The loader reads `.txt`, `.md`, and
+`.pdf` files recursively, in sorted path order. The default directory is
+`career-profile` in the current working directory. You can specify another
+directory with `--profile`.
+
+## Run the job searcher
+
+Run the module from the repository root. The command searches every combination
+of the supplied job titles and locations, then imports the results into the
+local database:
 
 ```powershell
-cd src/jobs_searcher
-python -m ui
+python -m job_searcher.main --lu linkedin_username --lpwd linkedin_password --title "Data Engineer" "Software Engineer" --location "São Paulo, Brazil" "Germany" --limit 50
 ```
 
-The interface reads jobs from `jobs.db` in the current working directory and
-creates the database and `jobs` table if they do not exist. Use the title,
-location, and Easy Apply filters to browse the results. The table displays ten
-jobs per page; use **Previous** and **Next** to navigate.
+To apply to available unapplied Easy Apply jobs after all searches have been
+imported, include `--apply`:
+
+```powershell
+python -m job_searcher.main --lu linkedin_username --lpwd linkedin_password --title "Data Engineer" --location "São Paulo, Brazil" --limit 50 --apply --profile C:\private\career-profile
+```
+
+### Command-line parameters
+
+- `--lu` (**required**): LinkedIn username.
+- `--lpwd` (**required**): LinkedIn password.
+- `--title` (**required**): one or more job titles. Quote titles containing
+  spaces.
+- `--location` (**required**): one or more locations. Quote locations containing
+  spaces. The search runs for every title/location combination.
+- `--limit` (optional, default `50`): maximum jobs to collect for each
+  title/location combination. Must be greater than zero.
+- `--apply` (optional flag): after importing search results, apply to available
+  unapplied Easy Apply jobs in the database.
+- `--profile` (optional, default `career-profile`): directory containing the
+  profile documents used when `--apply` is enabled. Supported formats are TXT,
+  Markdown, and PDF.
+
+## Run the user interface
+
+From the repository root, start the Gradio interface with:
+
+```powershell
+python -m job_searcher.ui
+```
+
+The interface reads `jobs.db` from the current working directory and creates
+the database and `jobs` table if needed. Filter by job title, location, Easy
+Apply, and Applied status. The table shows ten jobs per page; use **Previous**
+and **Next** to navigate. LinkedIn and apply URLs are clickable.
