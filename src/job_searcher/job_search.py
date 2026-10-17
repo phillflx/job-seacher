@@ -39,13 +39,19 @@ class JobSearch:
         self.driver = session_manager.driver
         self.fields_searcher: FieldsSearcher = FieldsSearcher()
 
-    def search(self, job_title: str, limit: int) -> list[Job]:
-        """Search LinkedIn for *job_title* and return up to *limit* jobs."""
-        logger.info("JobSearch.search(job_title=%r, limit=%d)", job_title, limit)
+    def search(self, job_title: str, limit: int, location: str = "") -> list[Job]:
+        """Search LinkedIn by title and optional location, up to *limit* jobs."""
+        logger.info(
+            "JobSearch.search(job_title=%r, location=%r, limit=%d)",
+            job_title, location, limit,
+        )
         if limit <= 0:
             return []
 
-        self.driver.get(f"{LINKEDIN_SEARCH_URL}?{urlencode({'keywords': job_title})}")
+        search_params = {"keywords": job_title}
+        if location:
+            search_params["location"] = location
+        self.driver.get(f"{LINKEDIN_SEARCH_URL}?{urlencode(search_params)}")
         wait = WebDriverWait(self.driver, 15)
         container = wait.until(
             EC.presence_of_element_located((By.CSS_SELECTOR, JOBS_CONTAINER_SELECTOR))
