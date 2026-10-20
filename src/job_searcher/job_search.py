@@ -11,6 +11,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from .constants import LINKEDIN_GEOID_MAP
 from .fields_searcher import FieldsSearcher
 from .job import Job
 from .session_manager import SessionManager
@@ -50,7 +51,13 @@ class JobSearch:
 
         search_params = {"keywords": job_title}
         if location:
-            search_params["location"] = location
+            try:
+                search_params["geoId"] = LINKEDIN_GEOID_MAP[location]
+            except KeyError as error:
+                raise ValueError(
+                    f"Unsupported LinkedIn location {location!r}. Add its geoId "
+                    "to LINKEDIN_GEOID_MAP in constants.py."
+                ) from error
         self.driver.get(f"{LINKEDIN_SEARCH_URL}?{urlencode(search_params)}")
         wait = WebDriverWait(self.driver, 15)
         container = wait.until(
