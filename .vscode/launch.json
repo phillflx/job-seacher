@@ -1,0 +1,71 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Job searcher: main",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "job_searcher.main",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "console": "integratedTerminal",
+      "args": [
+        "--lu",
+        "${input:linkedinUsername}",
+        "--lpwd",
+        "${input:linkedinPassword}",
+        "--title",
+        "${input:jobTitle}",
+        "--location",
+        "${input:jobLocation}"
+      ]
+    },
+    {
+      "name": "Job searcher: apply",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "job_searcher.apply",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+      "console": "integratedTerminal",
+      "args": [
+        "--lu",
+        "${input:linkedinUsername}",
+        "--lpwd",
+        "${input:linkedinPassword}",
+        "--job_id",
+        "${input:jobId}"
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "linkedinUsername",
+      "type": "promptString",
+      "description": "LinkedIn username"
+    },
+    {
+      "id": "linkedinPassword",
+      "type": "promptString",
+      "description": "LinkedIn password",
+      "password": true
+    },
+    {
+      "id": "jobTitle",
+      "type": "promptString",
+      "description": "Job title to search",
+      "default": "Data Engineer"
+    },
+    {
+      "id": "jobLocation",
+      "type": "promptString",
+      "description": "Job location",
+      "default": "São Paulo, Brazil"
+    },
+    {
+      "id": "jobId",
+      "type": "promptString",
+      "description": "Saved LinkedIn job ID"
+    }
+  ]
+}
