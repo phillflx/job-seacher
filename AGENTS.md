@@ -25,6 +25,16 @@ This repository is a Python package that searches LinkedIn jobs with Selenium, s
 - Keep profile inputs as a directory of `.txt`, `.md`, and `.pdf` files. Do not put credentials or API keys in source code or documentation; supply them through command-line arguments or environment configuration as appropriate.
 - There is no formatter, linter, or test runner configured in `pyproject.toml`. Preserve nearby formatting and avoid adding tooling assumptions without updating project configuration.
 
+### Command-line entrypoints
+
+- Put executable workflows in a module under `src/job_searcher/` and support running them from the repository root with `python -m job_searcher.<module>`.
+- Use `argparse`; expose a `build_parser()` function and a `main(argv: list[str] | None = None)` function so argument parsing and workflow execution stay separate.
+- Keep credentials as required command-line arguments (`--lu` and `--lpwd`). Give profile-directory options a `career-profile` default and describe supported profile file types in their help text.
+- Load environment configuration with `python-dotenv` using `load_dotenv()` before importing local application modules that may use environment settings.
+- Configure logging in `main()` with `logging.basicConfig`, use the module logger for workflow messages, and log meaningful workflow progress.
+- When an entrypoint creates a `SessionManager`, authenticate with the parsed credentials and close `session.driver` in a `finally` block.
+- End executable modules with an `if __name__ == "__main__":` guard that calls `main()`.
+
 ## Install and run
 
 From the repository root, install the package and dependencies:

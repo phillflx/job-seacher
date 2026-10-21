@@ -50,6 +50,15 @@ python -m job_searcher.main --lu linkedin_username --lpwd linkedin_password --ti
   profile documents used when `--apply` is enabled. Supported formats are TXT,
   Markdown, and PDF.
 
+To apply to one saved job by its LinkedIn job ID, run:
+
+```powershell
+python -m job_searcher.apply --lu linkedin_username --lpwd linkedin_password --job_id 12344345 --profile career-profile-path
+```
+
+The command reads the job from `jobs.db` and requires it to be an unapplied Easy
+Apply job.
+
 ## Run the user interface
 
 From the repository root, start the Gradio interface with:
